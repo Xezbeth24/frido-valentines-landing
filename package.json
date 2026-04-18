@@ -4,15 +4,16 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node server.js"
   },
   "dependencies": {
     "cors": "^2.8.6",
     "dotenv": "^16.6.1",
     "express": "^4.22.1"
   },
-  "description": "",
-  "main": "script.js",
+  "description": "Frido Valentine's landing page",
+  "main": "server.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Xezbeth24/frido-valentines-landing.git"
@@ -24,5 +25,8 @@
     "url": "https://github.com/Xezbeth24/frido-valentines-landing/issues"
   },
   "homepage": "https://github.com/Xezbeth24/frido-valentines-landing#readme",
+  "engines": {
+    "node": ">=20"
+  },
   "devDependencies": {}
 }
