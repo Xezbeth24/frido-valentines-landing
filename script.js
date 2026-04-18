@@ -1,8 +1,4 @@
-const SHOPIFY_CONFIG = {
-  domain: "YOUR_STORE.myshopify.com",
-  storefrontToken: "YOUR_STOREFRONT_API_TOKEN",
-  apiVersion: "2025-01"
-};
+const STORE_DOMAIN = "frido-assignment-aftab.myshopify.com";
 
 const DESIGN_ASSETS = {
   icons: {
@@ -28,6 +24,8 @@ const CATEGORY_AVATARS = {
   kids: "K"
 };
 
+// Tabs now match assignment categories.
+// Collections are handled on the backend via the `collection` query param.
 const modes = {
   couple: {
     key: "couple",
@@ -40,7 +38,6 @@ const modes = {
     secondaryTabs: ["Sleep", "Travel", "WFH", "GYM"],
     showSecondary: false,
     storyTitle: "Match Made in Comfort",
-    collections: ["all", "best-sellers", "featured"],
     bodyClass: "couple-mode"
   },
   single: {
@@ -54,7 +51,6 @@ const modes = {
     secondaryTabs: ["Mom", "Dad", "BFF", "Kids"],
     showSecondary: true,
     storyTitle: "Or... pamper who matters to you!",
-    collections: ["all", "new-arrivals", "featured"],
     bodyClass: "single-mode"
   }
 };
@@ -62,9 +58,12 @@ const modes = {
 let currentMode = "couple";
 let activeCategory = "Sleep";
 let activeSecondaryCategory = "Sleep";
+
+// Cache products per (mode, category) so toggling tabs is snappy
+// Structure: cache[modeKey][categoryKey] = [products]
 let modeProductsCache = {
-  couple: [],
-  single: []
+  couple: {},
+  single: {}
 };
 
 const body = document.body;
@@ -95,10 +94,7 @@ function init() {
 }
 
 function onToggleMode() {
-  if (isModeSwitching) {
-    return;
-  }
-
+  if (isModeSwitching) return;
   const nextMode = currentMode === "couple" ? "single" : "couple";
   playModeTransition(nextMode);
 }
@@ -121,9 +117,7 @@ async function playModeTransition(nextMode) {
 }
 
 function delay(ms) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function applyMode(modeKey) {
@@ -141,8 +135,9 @@ async function applyMode(modeKey) {
   heroSubtitle.textContent = mode.subtitle;
   filterHeading.textContent = mode.heading;
 
-  if (heroVideo.querySelector("source").src !== mode.video) {
-    heroVideo.querySelector("source").src = mode.video;
+  const source = heroVideo.querySelector("source");
+  if (!source || source.src !== mode.video) {
+    heroVideo.innerHTML = `<source src="${mode.video}" type="video/mp4">`;
     heroVideo.load();
   }
 
@@ -151,26 +146,9 @@ async function applyMode(modeKey) {
   configureStoryAndSecondary(mode);
 
   renderLoadingCards(productsGrid);
-  if (mode.showSecondary) {
-    renderLoadingCards(secondaryProductsGrid);
-  }
+  if (mode.showSecondary) renderLoadingCards(secondaryProductsGrid);
 
-  if (modeProductsCache[modeKey].length === 0) {
-    try {
-      modeProductsCache[modeKey] = await fetchModeProducts(mode);
-    } catch {
-      renderStateCard(
-        "Unable to fetch products right now. Add your Shopify store domain and Storefront token in script.js and refresh.",
-        productsGrid
-      );
-      if (mode.showSecondary) {
-        renderStateCard("Waiting for Shopify products...", secondaryProductsGrid);
-      }
-      return;
-    }
-  }
-
-  renderProducts();
+  await loadProductsForActiveCategories();
 }
 
 function configureStoryAndSecondary(mode) {
@@ -192,9 +170,7 @@ function configureStoryAndSecondary(mode) {
 function hydrateDesignAssets() {
   Object.entries(DESIGN_ASSETS.icons).forEach(([buttonId, src]) => {
     const button = document.getElementById(buttonId);
-    if (!button || !src) {
-      return;
-    }
+    if (!button || !src) return;
 
     const iconImg = new Image();
     iconImg.src = src;
@@ -219,13 +195,15 @@ function renderTabs(categories, container, isSecondary) {
     const normalized = category.toLowerCase();
 
     text.textContent = category;
-    avatar.textContent = CATEGORY_AVATARS[normalized] || category.charAt(0).toUpperCase();
+    avatar.textContent =
+      CATEGORY_AVATARS[normalized] || category.charAt(0).toUpperCase();
     avatar.dataset.category = normalized;
 
-    const isActive = isSecondary ? category === activeSecondaryCategory : category === activeCategory;
+    const isActive =
+      isSecondary ? category === activeSecondaryCategory : category === activeCategory;
     tabButton.setAttribute("aria-selected", String(isActive));
 
-    tabButton.addEventListener("click", () => {
+    tabButton.addEventListener("click", async () => {
       if (isSecondary) {
         activeSecondaryCategory = category;
         updateActiveTabUI(secondaryTabs, true);
@@ -233,7 +211,7 @@ function renderTabs(categories, container, isSecondary) {
         activeCategory = category;
         updateActiveTabUI(tabsContainer, false);
       }
-      renderProducts();
+      await loadProductsForActiveCategories();
     });
 
     container.appendChild(fragment);
@@ -244,7 +222,8 @@ function updateActiveTabUI(container, isSecondary) {
   const tabButtons = container.querySelectorAll(".tab");
   tabButtons.forEach((button) => {
     const label = button.querySelector(".tab-text").textContent;
-    const selected = isSecondary ? label === activeSecondaryCategory : label === activeCategory;
+    const selected =
+      isSecondary ? label === activeSecondaryCategory : label === activeCategory;
     button.setAttribute("aria-selected", String(selected));
   });
 }
@@ -266,40 +245,62 @@ function renderStateCard(message, container) {
   container.appendChild(stateCard);
 }
 
-function renderProducts() {
-  const sourceProducts = modeProductsCache[currentMode];
-  const filtered = filterProductsByCategory(sourceProducts, activeCategory);
+// Load products for primary and secondary active categories via backend
+async function loadProductsForActiveCategories() {
+  const modeKey = currentMode;
+  const primaryKey = activeCategory.toLowerCase();
+  const secondaryKey = activeSecondaryCategory.toLowerCase();
 
-  if (filtered.length === 0) {
+  // Primary
+  if (!modeProductsCache[modeKey][primaryKey]) {
+    renderLoadingCards(productsGrid);
+    try {
+      const products = await fetchModeProducts(modeKey, primaryKey);
+      modeProductsCache[modeKey][primaryKey] = products;
+    } catch (err) {
+      console.error(err);
+      renderStateCard("Unable to fetch products right now.", productsGrid);
+      return;
+    }
+  }
+
+  const primaryProducts = modeProductsCache[modeKey][primaryKey];
+  if (!primaryProducts.length) {
     renderStateCard(`No products found for ${activeCategory}.`, productsGrid);
   } else {
     productsGrid.innerHTML = "";
-    filtered.forEach((product, index) => {
+    primaryProducts.forEach((product, index) => {
       productsGrid.appendChild(createProductCard(product, index));
     });
   }
 
-  if (modes[currentMode].showSecondary) {
-    const secondaryFiltered = filterProductsByCategory(sourceProducts, activeSecondaryCategory);
-    if (secondaryFiltered.length === 0) {
-      renderStateCard(`No products found for ${activeSecondaryCategory}.`, secondaryProductsGrid);
+  // Secondary (only for single mode)
+  if (modes[modeKey].showSecondary) {
+    if (!modeProductsCache[modeKey][secondaryKey]) {
+      renderLoadingCards(secondaryProductsGrid);
+      try {
+        const products = await fetchModeProducts(modeKey, secondaryKey);
+        modeProductsCache[modeKey][secondaryKey] = products;
+      } catch (err) {
+        console.error(err);
+        renderStateCard("Unable to fetch products right now.", secondaryProductsGrid);
+        return;
+      }
+    }
+
+    const secondaryProducts = modeProductsCache[modeKey][secondaryKey];
+    if (!secondaryProducts.length) {
+      renderStateCard(
+        `No products found for ${activeSecondaryCategory}.`,
+        secondaryProductsGrid
+      );
     } else {
       secondaryProductsGrid.innerHTML = "";
-      secondaryFiltered.forEach((product, index) => {
+      secondaryProducts.forEach((product, index) => {
         secondaryProductsGrid.appendChild(createProductCard(product, index));
       });
     }
   }
-}
-
-function filterProductsByCategory(sourceProducts, category) {
-  const categoryKey = category.toLowerCase();
-  return sourceProducts.filter((product) => {
-    if (!Array.isArray(product.tags) || product.tags.length === 0) {
-      return true;
-    }
-    return product.tags.some((tag) => tag.toLowerCase() === categoryKey);
-  });
 }
 
 function createProductCard(product, index) {
@@ -319,14 +320,14 @@ function createProductCard(product, index) {
   image.alt = product.title;
 
   title.textContent = product.title;
-  subtitle.textContent = product.subtitle;
+  subtitle.textContent = product.subtitle || deriveSubtitle(product.title);
   originalPrice.textContent = product.originalPrice;
-  discountBadge.textContent = `${product.discount}% OFF`;
+  discountBadge.textContent = product.discount ? `${product.discount}% OFF` : "";
   salePrice.textContent = product.salePrice;
 
   addToCartButton.addEventListener("click", () => {
     const addUrl = product.variantId
-      ? `https://${SHOPIFY_CONFIG.domain}/cart/${decodeShopifyId(product.variantId)}:1`
+      ? `https://${STORE_DOMAIN}/cart/${decodeShopifyId(product.variantId)}:1`
       : product.productUrl;
     window.open(addUrl, "_blank", "noopener,noreferrer");
   });
@@ -334,109 +335,24 @@ function createProductCard(product, index) {
   return fragment;
 }
 
-async function fetchModeProducts(mode) {
-  ensureShopifyConfig();
+// Call backend: /api/products?mode=couple&collection=sleep
+async function fetchModeProducts(modeKey, categoryKey) {
+  const url = `/api/products?mode=${encodeURIComponent(
+    modeKey
+  )}&collection=${encodeURIComponent(categoryKey)}`;
 
-  const collectionQuery = mode.collections.map((handle) => `handle:${handle}`).join(" OR ");
-
-  const query = `
-    query ProductsByCollection($query: String!) {
-      collections(first: 8, query: $query) {
-        edges {
-          node {
-            handle
-            products(first: 30) {
-              edges {
-                node {
-                  id
-                  title
-                  tags
-                  onlineStoreUrl
-                  featuredImage {
-                    url
-                    altText
-                  }
-                  variants(first: 1) {
-                    edges {
-                      node {
-                        id
-                        price {
-                          amount
-                          currencyCode
-                        }
-                        compareAtPrice {
-                          amount
-                          currencyCode
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  `;
-
-  const response = await fetch(
-    `https://${SHOPIFY_CONFIG.domain}/api/${SHOPIFY_CONFIG.apiVersion}/graphql.json`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Shopify-Storefront-Access-Token": SHOPIFY_CONFIG.storefrontToken
-      },
-      body: JSON.stringify({
-        query,
-        variables: { query: collectionQuery }
-      })
-    }
-  );
+  const response = await fetch(url);
 
   if (!response.ok) {
     throw new Error(`Shopify API request failed: ${response.status}`);
   }
 
   const payload = await response.json();
-  if (payload.errors) {
-    throw new Error(payload.errors[0]?.message || "Shopify API error");
+  if (payload.error) {
+    throw new Error(payload.error);
   }
 
-  const collectionEdges = payload.data.collections.edges || [];
-  const productMap = new Map();
-
-  collectionEdges.forEach((collectionEdge) => {
-    const productEdges = collectionEdge.node.products.edges || [];
-    productEdges.forEach((productEdge) => {
-      const normalized = normalizeProduct(productEdge.node);
-      productMap.set(normalized.id, normalized);
-    });
-  });
-
-  return Array.from(productMap.values());
-}
-
-function normalizeProduct(product) {
-  const variant = product.variants?.edges?.[0]?.node;
-  const sale = Number(variant?.price?.amount || 0);
-  const compare = Number(variant?.compareAtPrice?.amount || sale);
-  const discount = compare > sale && compare > 0 ? Math.round(((compare - sale) / compare) * 100) : 0;
-  const currency = variant?.price?.currencyCode || "INR";
-
-  return {
-    id: product.id,
-    title: product.title,
-    subtitle: deriveSubtitle(product.title),
-    tags: product.tags || [],
-    image: product.featuredImage?.url || "",
-    originalPrice: compare ? money(compare, currency) : money(sale, currency),
-    salePrice: money(sale, currency),
-    discount,
-    variantId: variant?.id,
-    productUrl: product.onlineStoreUrl || `https://${SHOPIFY_CONFIG.domain}`
-  };
+  return Array.isArray(payload.products) ? payload.products : [];
 }
 
 function deriveSubtitle(title) {
@@ -468,17 +384,6 @@ function decodeShopifyId(encodedId) {
     return decoded.split("/").pop();
   } catch {
     return encodedId;
-  }
-}
-
-function ensureShopifyConfig() {
-  if (
-    !SHOPIFY_CONFIG.domain ||
-    SHOPIFY_CONFIG.domain.includes("YOUR_STORE") ||
-    !SHOPIFY_CONFIG.storefrontToken ||
-    SHOPIFY_CONFIG.storefrontToken.includes("YOUR_STOREFRONT_API_TOKEN")
-  ) {
-    throw new Error("Shopify config missing");
   }
 }
 

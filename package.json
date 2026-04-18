@@ -1,0 +1,28 @@
+{
+  "name": "frido-valentines-landing",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.1"
+  },
+  "description": "",
+  "main": "script.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Xezbeth24/frido-valentines-landing.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Xezbeth24/frido-valentines-landing/issues"
+  },
+  "homepage": "https://github.com/Xezbeth24/frido-valentines-landing#readme",
+  "devDependencies": {}
+}
