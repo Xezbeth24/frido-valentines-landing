@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Frido Valentine Landing</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="couple-mode">
+  <div class="ambient"></div>
+  <main class="page-shell">
+    <header class="app-header">
+      <div class="status-strip">
+        <span>9:41</span>
+        <span class="status-dots" aria-hidden="true">● ● ●</span>
+      </div>
+      <p class="domain">myfrido.com</p>
+      <div class="nav-strip">
+        <button id="iconMenu" class="icon-btn" type="button" aria-label="Menu">☰</button>
+        <button id="iconAccount" class="icon-btn" type="button" aria-label="Account">◌</button>
+        <h1 class="brand">frido</h1>
+        <button id="iconSearch" class="icon-btn" type="button" aria-label="Search">⌕</button>
+        <button id="iconCart" class="icon-btn" type="button" aria-label="Cart">◍</button>
+      </div>
+    </header>
+
+    <section class="hero" id="hero">
+      <button id="modeToggle" class="mode-toggle" aria-label="Toggle between couple and single mode">
+        <span class="mode-pill mode-pill-couple">Couple</span>
+        <span class="mode-pill mode-pill-single">Single</span>
+        <span class="slider-dot" aria-hidden="true"></span>
+      </button>
+      <video id="heroVideo" class="hero-video" autoplay muted loop playsinline preload="metadata">
+        <source src="https://cdn.shopify.com/videos/c/o/v/c102dc6ee2be49fc9935403b43e413bb.mp4" type="video/mp4" />
+      </video>
+      <div class="hero-overlay"></div>
+      <div class="hero-content">
+        <p id="modeBadge" class="hero-badge">Couple Mode</p>
+        <h2 id="heroTitle">This Valentine&apos;s Gift Comfort</h2>
+        <p id="heroSubtitle">Curated comfort picks for every kind of pampering.</p>
+      </div>
+    </section>
+
+    <section class="filters-wrap">
+      <h3 id="filterHeading">So... what kind of paglu is yours?</h3>
+      <div id="tabs" class="tabs" role="tablist" aria-label="Categories"></div>
+    </section>
+
+    <section class="products-section" aria-live="polite">
+      <div id="productsGrid" class="products-grid"></div>
+    </section>
+
+    <section id="midStory" class="mid-story" aria-hidden="true">
+      <div class="story-illustration" id="storyIllustration">
+        <img id="storyImage" class="story-image" alt="Mode illustration" hidden />
+      </div>
+      <h3 id="storyTitle"></h3>
+    </section>
+
+    <section id="secondaryFiltersWrap" class="filters-wrap secondary" hidden>
+      <h3 id="secondaryFilterHeading">Or... pamper who matters to you!</h3>
+      <div id="secondaryTabs" class="tabs" role="tablist" aria-label="Secondary Categories"></div>
+    </section>
+
+    <section id="secondaryProductsSection" class="products-section" aria-live="polite" hidden>
+      <div id="secondaryProductsGrid" class="products-grid"></div>
+    </section>
+  </main>
+
+  <template id="tabTemplate">
+    <button class="tab" role="tab" type="button">
+      <span class="tab-avatar"></span>
+      <span class="tab-text"></span>
+    </button>
+  </template>
+
+  <template id="productTemplate">
+    <article class="product-card">
+      <div class="product-image-wrap">
+        <img class="product-image" loading="lazy" alt="" />
+      </div>
+      <div class="rating-row">
+        <span class="star">★</span>
+        <span class="rating">4.7</span>
+        <span class="count">(786+)</span>
+      </div>
+      <h4 class="product-title"></h4>
+      <p class="product-subtitle"></p>
+      <div class="price-row">
+        <span class="original-price"></span>
+        <span class="discount-badge"></span>
+      </div>
+      <p class="sale-price"></p>
+      <button class="add-to-cart" type="button">Add To Cart</button>
+    </article>
+  </template>
+
+  <script src="script.js"></script>
+</body>
+</html>
